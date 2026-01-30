@@ -223,8 +223,7 @@ export default function HomePage() {
                   {o.urgent && (
                     <span className="rounded-full bg-red-100 text-red-800 px-4 py-2 text-xs font-bold">
                       URGENT (
-                      <span className="font-extrabold text-sm">+10 LEI</span> la total „produse
-                      + transport + 10 lei”)
+                      <span className="font-extrabold text-sm">+10 LEI</span> la total dacă ajungi în 30 minute de la acceptarea comenzii)
                     </span>
                   )}
                   <div className="text-xs text-gray-600">
