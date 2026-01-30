@@ -12,7 +12,7 @@ const brandFont = Poppins({
 
 function normalizePhone(raw: string) {
   let cleaned = raw.trim().replace(/[^\d+]/g, "");
-  if (cleaned.startsWith("07")) cleaned = "+4" + cleaned;
+  if (cleaned.startsWith("07")) cleaned = "+4" + cleaned; // +407...
   if (cleaned.startsWith("0040")) cleaned = "+40" + cleaned.slice(4);
   if (cleaned.startsWith("40") && !cleaned.startsWith("+")) cleaned = "+" + cleaned;
   return cleaned;
@@ -29,131 +29,159 @@ export default function CererePage() {
   );
 
   const [what, setWhat] = useState("");
-  const [whoWhere, setWhoWhere] = useState("");
+  const [name, setName] = useState("");
+  const [address, setAddress] = useState(""); // UI: Adresă
   const [phone, setPhone] = useState("");
   const [urgent, setUrgent] = useState(false);
+
   const [busy, setBusy] = useState(false);
 
   async function submit() {
     const w = what.trim();
-    const ww = whoWhere.trim();
-    const p = phone.trim();
+    const n = name.trim();
+    const a = address.trim();
+    const p = normalizePhone(phone);
 
-    if (!w || !ww || !p) {
+    // toate obligatorii
+    if (!w || !n || !a || !p) {
       alert("Completează toate câmpurile.");
       return;
     }
 
+    // minim 10 cifre (RO)
+    const digits = p.replace(/[^\d]/g, "");
+    if (digits.length < 10) {
+      alert("Număr de telefon invalid. Folosește format RO: 07... / +40... / 0040...");
+      return;
+    }
+
     setBusy(true);
+
     try {
+      // who_where rămâne compatibil cu ce ai acum: "Nume, Adresă"
+      const who_where = `${n}, ${a}`;
+
       const { error } = await supabase.from("orders").insert([
         {
           what: w,
-          who_where: ww,
-          phone: normalizePhone(p),
+          who_where,
+          phone: p,
           urgent,
           status: "active",
         },
       ]);
 
-      if (error) throw new Error(error.message);
+      if (error) {
+        alert("Eroare la trimitere: " + error.message);
+        setBusy(false);
+        return;
+      }
 
       alert("Comanda a fost trimisă cu succes!");
+      // reset
       setWhat("");
-      setWhoWhere("");
+      setName("");
+      setAddress("");
       setPhone("");
       setUrgent(false);
     } catch (e: any) {
-      alert(e?.message || "Eroare la trimitere.");
+      alert("Eroare: " + (e?.message || "necunoscută"));
     } finally {
       setBusy(false);
     }
   }
 
+  const inputClass =
+    "w-full rounded-2xl border px-5 py-4 text-lg text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-orange-200 bg-white";
+
   return (
-    <main className="min-h-screen bg-orange-50 p-6 flex justify-center text-gray-900">
-      <div className="w-full max-w-2xl space-y-6">
-        <div className="text-center">
-          <Link href="/" className="text-orange-700 underline">
+    <main className="min-h-screen bg-orange-50 p-6 flex justify-center">
+      <div className="w-full max-w-2xl space-y-8">
+        {/* HEADER */}
+        <header className="text-center space-y-3">
+          <Link href="/" className="inline-block text-orange-700 underline font-semibold">
             ← Înapoi
           </Link>
 
-          <h1 className={`${brandFont.className} text-5xl font-bold text-orange-600 mt-4`}>
+          <h1 className={`${brandFont.className} text-5xl font-bold text-orange-600`}>
             Amvenit.ro
           </h1>
-          <p className="text-gray-800 mt-2">Plasează o comandă în câteva secunde.</p>
-        </div>
 
-        <section className="bg-white rounded-2xl p-6 shadow text-gray-900">
-          <div className="space-y-5">
-            {/* Ce ai nevoie */}
-            <div>
-              <label className="block text-lg font-bold text-gray-900 mb-2">
-                Ce ai nevoie?
-              </label>
+          <p className="text-gray-700">Plasează o comandă în câteva secunde.</p>
+        </header>
+
+        {/* FORM */}
+        <section className="bg-white rounded-2xl p-6 shadow space-y-6">
+          <div className="space-y-2">
+            <div className="text-xl font-bold text-gray-900">Ce ai nevoie?</div>
+            <input
+              value={what}
+              onChange={(e) => setWhat(e.target.value)}
+              className={inputClass}
+              placeholder="ex: pâine, transport persoane, colet, medicamente etc."
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-xl font-bold text-gray-900">Nume</div>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={inputClass}
+              placeholder="ex: Laurențiu"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-xl font-bold text-gray-900">Adresă</div>
+            <input
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className={inputClass}
+              placeholder="ex: Str. Principală nr. 12, Baia de Aramă"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-xl font-bold text-gray-900">Telefon</div>
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className={inputClass}
+              placeholder="ex: 07xxxxxxxx / +40xxxxxxxxx"
+              inputMode="tel"
+            />
+          </div>
+
+          {/* URGENT */}
+          <label className="block rounded-2xl border-2 border-orange-200 bg-orange-50 p-5 cursor-pointer">
+            <div className="flex items-start gap-4">
               <input
-                value={what}
-                onChange={(e) => setWhat(e.target.value)}
-                placeholder="ex: pâine, transport persoane, colet, medicamente etc."
-                className="w-full rounded-2xl border border-gray-200 bg-white px-5 py-4 text-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                type="checkbox"
+                checked={urgent}
+                onChange={(e) => setUrgent(e.target.checked)}
+                className="mt-1 h-6 w-6"
               />
-            </div>
-
-            {/* Nume / Localitate */}
-            <div>
-              <label className="block text-lg font-bold text-gray-900 mb-2">
-                Nume / Localitate
-              </label>
-              <input
-                value={whoWhere}
-                onChange={(e) => setWhoWhere(e.target.value)}
-                placeholder="ex: Laurențiu, Pistrița"
-                className="w-full rounded-2xl border border-gray-200 bg-white px-5 py-4 text-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
-              />
-            </div>
-
-            {/* Telefon */}
-            <div>
-              <label className="block text-lg font-bold text-gray-900 mb-2">
-                Telefon
-              </label>
-              <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="ex: 07xxxxxxxx"
-                className="w-full rounded-2xl border border-gray-200 bg-white px-5 py-4 text-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
-              />
-            </div>
-
-            {/* Urgent */}
-            <label className="block rounded-2xl border-2 border-orange-200 bg-orange-50 p-5 cursor-pointer">
-              <div className="flex items-start gap-4">
-                <input
-                  type="checkbox"
-                  checked={urgent}
-                  onChange={(e) => setUrgent(e.target.checked)}
-                  className="mt-1 h-6 w-6"
-                />
-                <div>
-                  <div className="text-lg font-extrabold text-orange-700">Urgent!</div>
-                  <div className="text-gray-800 mt-1">
-                    <span className="text-4xl font-black text-orange-600">+10 LEI</span>{" "}
-                    la finalul cursei dacă vine în{" "}
-                    <span className="font-extrabold">30 minute maxim</span>.
-                  </div>
+              <div>
+                <div className="text-xl font-bold text-orange-700">Urgent!</div>
+                <div className="mt-1 text-gray-800">
+                  <span className="text-4xl font-black text-orange-600">+10 LEI</span>{" "}
+                  la finalul cursei dacă vine în <span className="font-bold">30 minute maxim</span>.
                 </div>
               </div>
-            </label>
+            </div>
+          </label>
 
-            {/* Submit */}
-            <button
-              onClick={submit}
-              disabled={busy}
-              className="w-full rounded-full bg-orange-600 hover:bg-orange-700 px-8 py-5 text-xl font-extrabold text-white shadow disabled:opacity-60"
-            >
-              {busy ? "Se trimite..." : "Trimite comanda"}
-            </button>
-          </div>
+          {/* SUBMIT */}
+          <button
+            onClick={submit}
+            disabled={busy}
+            className={`w-full rounded-full bg-orange-600 hover:bg-orange-700 px-8 py-5 text-xl font-extrabold text-white shadow ${
+              busy ? "opacity-60 cursor-not-allowed" : ""
+            }`}
+          >
+            {busy ? "Se trimite..." : "Trimite comanda"}
+          </button>
         </section>
       </div>
     </main>
