@@ -32,17 +32,29 @@ export default function Hero() {
         </button>
       </div>
 
-      {/* MASCOTA LEFT (mic pe mobil / ascuns pe foarte mic) */}
-      <div className="absolute left-3 top-3 sm:left-8 sm:top-6 z-20 hidden sm:block">
-        <Image
-          src="/mascota.png"
-          alt="Mascotă amvenit.ro"
-          width={200}
-          height={360}
-          priority
-          className="select-none pointer-events-none"
-        />
-      </div>
+      {/* MASCOTĂ – telefon (mică) */}
+<div className="absolute left-3 top-3 z-20 md:hidden">
+  <Image
+    src="/mascota.png"
+    alt="Mascotă amvenit.ro"
+    width={70}
+    height={70}
+    priority
+    className="select-none pointer-events-none"
+  />
+</div>
+
+{/* MASCOTĂ – desktop (mare) */}
+<div className="absolute left-8 top-16 z-20 hidden md:block">
+  <Image
+    src="/mascota.png"
+    alt="Mascotă amvenit.ro"
+    width={200}
+    height={360}
+    priority
+    className="select-none pointer-events-none"
+  />
+</div>
 
       {/* CONTENT */}
       <div className="text-center w-full max-w-xl sm:max-w-2xl pt-16 sm:pt-20 pb-10 sm:pb-12">
