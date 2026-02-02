@@ -3,16 +3,10 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { Poppins } from "next/font/google";
-
-const brandFont = Poppins({
-  subsets: ["latin"],
-  weight: ["600", "700"],
-});
 
 function normalizePhone(raw: string) {
   let cleaned = raw.trim().replace(/[^\d+]/g, "");
-  if (cleaned.startsWith("07")) cleaned = "+4" + cleaned; // +407...
+  if (cleaned.startsWith("07")) cleaned = "+4" + cleaned;
   if (cleaned.startsWith("0040")) cleaned = "+40" + cleaned.slice(4);
   if (cleaned.startsWith("40") && !cleaned.startsWith("+")) cleaned = "+" + cleaned;
   return cleaned;
@@ -30,158 +24,171 @@ export default function CererePage() {
 
   const [what, setWhat] = useState("");
   const [name, setName] = useState("");
-  const [address, setAddress] = useState(""); // UI: Adresă
+  const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
   const [urgent, setUrgent] = useState(false);
 
-  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
 
   async function submit() {
+    setErr(null);
+    setDone(null);
+
     const w = what.trim();
     const n = name.trim();
     const a = address.trim();
-    const p = normalizePhone(phone);
+    const p = phone.trim();
 
-    // toate obligatorii
     if (!w || !n || !a || !p) {
-      alert("Completează toate câmpurile.");
+      setErr("Completează toate câmpurile (toate sunt obligatorii).");
       return;
     }
 
-    // minim 10 cifre (RO)
-    const digits = p.replace(/[^\d]/g, "");
-    if (digits.length < 10) {
-      alert("Număr de telefon invalid. Folosește format RO: 07... / +40... / 0040...");
-      return;
-    }
-
-    setBusy(true);
-
+    setLoading(true);
     try {
-      // who_where rămâne compatibil cu ce ai acum: "Nume, Adresă"
-      const who_where = `${n}, ${a}`;
-
+      const who_where = `${n} • ${a}`;
       const { error } = await supabase.from("orders").insert([
         {
           what: w,
           who_where,
-          phone: p,
+          phone: normalizePhone(p),
           urgent,
           status: "active",
         },
       ]);
 
-      if (error) {
-        alert("Eroare la trimitere: " + error.message);
-        setBusy(false);
-        return;
-      }
+      if (error) throw new Error(error.message);
 
-      alert("Comanda a fost trimisă cu succes!");
-      // reset
+      setDone("Comanda a fost trimisă.");
       setWhat("");
       setName("");
       setAddress("");
       setPhone("");
       setUrgent(false);
     } catch (e: any) {
-      alert("Eroare: " + (e?.message || "necunoscută"));
+      setErr(e?.message ?? "Eroare necunoscută.");
     } finally {
-      setBusy(false);
+      setLoading(false);
     }
   }
 
-  const inputClass =
-    "w-full rounded-2xl border px-5 py-4 text-lg text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-orange-200 bg-white";
-
   return (
-    <main className="min-h-screen bg-orange-50 p-6 flex justify-center">
-      <div className="w-full max-w-2xl space-y-8">
-        {/* HEADER */}
-        <header className="text-center space-y-3">
-          <Link href="/" className="inline-block text-orange-700 underline font-semibold">
+    <main className="min-h-screen relative flex items-center justify-center px-5 py-16">
+      {/* BACKGROUND ca pe home */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute inset-0 bg-hero-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_60%,transparent_100%)]" />
+      </div>
+
+      <div className="w-full max-w-2xl">
+        <div className="text-center mb-10">
+          <Link
+            href="/"
+            className="inline-block text-sm font-semibold text-orange-600 hover:text-orange-700 underline underline-offset-4"
+          >
             ← Înapoi
           </Link>
 
-          <h1 className={`${brandFont.className} text-5xl font-bold text-orange-600`}>
-            Amvenit.ro
+          <h1 className="mt-5 text-5xl font-extrabold text-slate-900">
+            amvenit.ro
           </h1>
+          <p className="mt-3 text-base md:text-lg text-slate-600">
+            Plasează o comandă în câteva secunde.
+          </p>
+        </div>
 
-          <p className="text-gray-700">Plasează o comandă în câteva secunde.</p>
-        </header>
-
-        {/* FORM */}
-        <section className="bg-white rounded-2xl p-6 shadow space-y-6">
-          <div className="space-y-2">
-            <div className="text-xl font-bold text-gray-900">Ce ai nevoie?</div>
-            <input
-              value={what}
-              onChange={(e) => setWhat(e.target.value)}
-              className={inputClass}
-              placeholder="ex: pâine, transport persoane, colet, medicamente etc."
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div className="text-xl font-bold text-gray-900">Nume</div>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className={inputClass}
-              placeholder="ex: Laurențiu"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div className="text-xl font-bold text-gray-900">Adresă</div>
-            <input
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className={inputClass}
-              placeholder="ex: Str. Principală nr. 12, Baia de Aramă"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div className="text-xl font-bold text-gray-900">Telefon</div>
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className={inputClass}
-              placeholder="ex: 07xxxxxxxx / +40xxxxxxxxx"
-              inputMode="tel"
-            />
-          </div>
-
-          {/* URGENT */}
-          <label className="block rounded-2xl border-2 border-orange-200 bg-orange-50 p-5 cursor-pointer">
-            <div className="flex items-start gap-4">
+        <section className="bg-white/80 backdrop-blur rounded-3xl shadow-xl border border-black/5 p-6 md:p-8">
+          <div className="space-y-6">
+            <div>
+              <label className="block font-bold text-slate-900 text-lg">
+                Ce ai nevoie?
+              </label>
               <input
-                type="checkbox"
-                checked={urgent}
-                onChange={(e) => setUrgent(e.target.checked)}
-                className="mt-1 h-6 w-6"
+                value={what}
+                onChange={(e) => setWhat(e.target.value)}
+                placeholder="ex: pâine, transport persoane, colet, medicamente etc."
+                className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-5 py-4 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
-              <div>
-                <div className="text-xl font-bold text-orange-700">Urgent!</div>
-                <div className="mt-1 text-gray-800">
-                  <span className="text-4xl font-black text-orange-600">+10 LEI</span>{" "}
-                  la finalul cursei dacă vine în <span className="font-bold">30 minute maxim</span>.
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-900 text-lg">Nume</label>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="ex: Laurențiu"
+                className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-5 py-4 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-900 text-lg">Adresă</label>
+              <input
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="ex: Str. Principală nr. 12, Baia de Aramă"
+                className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-5 py-4 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-900 text-lg">Telefon</label>
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="ex: 07xxxxxxxx / +40xxxxxxxxx"
+                className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-5 py-4 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              />
+            </div>
+
+            <label className="block rounded-2xl border border-orange-200 bg-orange-50/60 p-5 cursor-pointer">
+              <div className="flex items-start gap-4">
+                <input
+                  type="checkbox"
+                  checked={urgent}
+                  onChange={(e) => setUrgent(e.target.checked)}
+                  className="mt-1 h-5 w-5"
+                />
+                <div>
+                  <div className="font-extrabold text-orange-700 text-lg">
+                    Urgent!
+                  </div>
+                  <div className="mt-2 text-slate-800">
+                    <span className="text-4xl font-black text-orange-600">
+                      +10 LEI
+                    </span>{" "}
+                    <span className="font-semibold">
+                      la finalul cursei dacă vine în <b>30 minute maxim</b>.
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </label>
+            </label>
 
-          {/* SUBMIT */}
-          <button
-            onClick={submit}
-            disabled={busy}
-            className={`w-full rounded-full bg-orange-600 hover:bg-orange-700 px-8 py-5 text-xl font-extrabold text-white shadow ${
-              busy ? "opacity-60 cursor-not-allowed" : ""
-            }`}
-          >
-            {busy ? "Se trimite..." : "Trimite comanda"}
-          </button>
+            {err && (
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-800 font-semibold">
+                {err}
+              </div>
+            )}
+            {done && (
+              <div className="rounded-2xl border border-green-200 bg-green-50 px-5 py-4 text-green-800 font-semibold">
+                {done}
+              </div>
+            )}
+
+            <button
+              onClick={submit}
+              disabled={loading}
+              className="w-full rounded-full bg-orange-600 hover:bg-orange-700 disabled:opacity-60 px-8 py-5 text-lg font-extrabold text-white shadow-lg"
+            >
+              {loading ? "Se trimite..." : "Trimite comanda"}
+            </button>
+
+            <p className="text-center text-xs text-slate-500 pt-2">
+              * Platformă de intermediere. Livratorii sunt responsabili de livrare.
+            </p>
+          </div>
         </section>
       </div>
     </main>
