@@ -7,15 +7,18 @@ const PlayStoreButton = ({ dark }: { dark?: boolean }) => {
       <button
         type="button"
         className={clsx(
-          "flex items-center justify-center min-w-[180px] px-5 h-14 rounded-full w-auto",
+          "flex items-center justify-center rounded-full h-12 sm:h-14 " +
+            "min-w-[150px] sm:min-w-[205px] " +
+            "px-4 sm:px-6 " +
+            "w-auto",
           {
             "text-white bg-foreground": dark,
             "text-foreground bg-white": !dark,
           }
         )}
       >
-        <div className="mr-3">
-          <svg viewBox="30 336.7 120.9 129.2" width="26">
+        <div className="mr-2 sm:mr-3">
+          <svg viewBox="30 336.7 120.9 129.2" className="w-5 sm:w-7" aria-hidden="true">
             <path
               fill="#FFD400"
               d="M119.2,421.2c15.3-8.4,27-14.8,28-15.3c3.2-1.7,6.5-6.2,0-9.7c-2.1-1.1-13.4-7.3-28-15.3l-20.1,20.2L119.2,421.2z"
@@ -35,9 +38,9 @@ const PlayStoreButton = ({ dark }: { dark?: boolean }) => {
           </svg>
         </div>
 
-        <div className="text-left">
-          <div className="text-xs">GET IT ON</div>
-          <div className="-mt-1 font-sans text-lg font-semibold">
+        <div className="text-left leading-tight">
+          <div className="text-[10px] sm:text-xs opacity-90">GET IT ON</div>
+          <div className="-mt-0.5 font-sans text-base sm:text-xl font-semibold">
             Google Play
           </div>
         </div>

@@ -81,7 +81,7 @@ export default function Hero() {
         </div>
 
         {/* APP BUTTONS (pe mobil stack / spacing normal) */}
-        <div className="mt-10 sm:mt-14 flex flex-row flex-wrap items-center justify-center gap-4 sm:gap-6">
+        <div className="mt-10 sm:mt-14 flex flex-row items-center justify-center gap-3 sm:gap-6">
   <AppStoreButton />
   <PlayStoreButton />
 </div>
