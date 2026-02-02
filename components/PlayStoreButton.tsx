@@ -1,30 +1,28 @@
-import React from "react";
 import clsx from "clsx";
 import { ctaDetails } from "@/data/cta";
 
 const PlayStoreButton = ({ dark }: { dark?: boolean }) => {
-  const base =
-    "flex items-center justify-center min-w-[205px] mt-3 px-6 h-14 rounded-full w-full sm:w-fit transition shadow-lg";
-
-  const classes = clsx(
-    base,
-    dark
-      ? "bg-white text-black hover:bg-gray-100"
-      : "bg-[#0b1020] text-white hover:bg-[#111c33]"
-  );
-
   return (
-    <a href={ctaDetails.googlePlayUrl} target="_blank" rel="noreferrer">
-      <button type="button" className={classes}>
+    <a href={ctaDetails.googlePlayUrl}>
+      <button
+        type="button"
+        className={clsx(
+          "flex items-center justify-center min-w-[180px] px-5 h-14 rounded-full w-auto",
+          {
+            "text-white bg-foreground": dark,
+            "text-foreground bg-white": !dark,
+          }
+        )}
+      >
         <div className="mr-3">
-          <svg viewBox="30 336.7 120.9 129.2" width="30" aria-hidden="true">
+          <svg viewBox="30 336.7 120.9 129.2" width="26">
             <path
               fill="#FFD400"
               d="M119.2,421.2c15.3-8.4,27-14.8,28-15.3c3.2-1.7,6.5-6.2,0-9.7c-2.1-1.1-13.4-7.3-28-15.3l-20.1,20.2L119.2,421.2z"
             />
             <path
               fill="#FF3333"
-              d="M99.1,401.1l-64.2,64.7c1.5,0.2,3.2-0.2,5.2-1.3c4.2-2.3,48.8-26.7,79.1-43.3L99.1,401.1L99.1,401.1z"
+              d="M99.1,401.1l-64.2,64.7c1.5,0.2,3.2-0.2,5.2-1.3c4.2-2.3,48.8-26.7,79.1-43.3L99.1,401.1z"
             />
             <path
               fill="#48FF48"
@@ -36,9 +34,12 @@ const PlayStoreButton = ({ dark }: { dark?: boolean }) => {
             />
           </svg>
         </div>
-        <div className="leading-tight text-left">
-          <div className="text-xs uppercase tracking-wide">Get it on</div>
-          <div className="-mt-1 font-sans text-xl font-semibold">Google Play</div>
+
+        <div className="text-left">
+          <div className="text-xs">GET IT ON</div>
+          <div className="-mt-1 font-sans text-lg font-semibold">
+            Google Play
+          </div>
         </div>
       </button>
     </a>

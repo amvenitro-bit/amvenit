@@ -15,10 +15,10 @@ export default function Hero() {
 
       {/* HEADER RIGHT (safe-area friendly) */}
       {/* LOGO (telefon + desktop) */}
-<div className="absolute left-4 top-4 z-20">
+<div className="absolute left-4 top-4 z-20 sm:hidden">
   <Link
     href="/"
-    className="text-white font-extrabold tracking-tight text-xl md:text-2xl"
+    className="text-white font-extrabold tracking-tight text-xl"
   >
     amvenit.ro
   </Link>
@@ -37,7 +37,7 @@ export default function Hero() {
         <Image
           src="/mascota.png"
           alt="Mascotă amvenit.ro"
-          width={240}
+          width={200}
           height={360}
           priority
           className="select-none pointer-events-none"
