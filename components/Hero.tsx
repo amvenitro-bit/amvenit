@@ -1,10 +1,26 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 
 import AppStoreButton from "./AppStoreButton";
 import PlayStoreButton from "./PlayStoreButton";
 
 export default function Hero() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  // închide meniul dacă dai click în afară
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!menuRef.current) return;
+      if (!menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
   return (
     <section className="relative min-h-screen flex items-center justify-center px-6 overflow-hidden">
       {/* BACKGROUND */}
@@ -13,13 +29,13 @@ export default function Hero() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/70" />
       </div>
 
-      {/* MASCOTĂ – telefon (mică) */}
+      {/* MASCOTĂ – telefon (mai mică + sus stânga) */}
       <div className="absolute left-3 top-3 z-20 md:hidden">
         <Image
           src="/mascota.png"
           alt="Mascotă amvenit.ro"
-          width={70}
-          height={70}
+          width={52}
+          height={52}
           priority
           className="select-none pointer-events-none mascot-pop"
         />
@@ -37,18 +53,56 @@ export default function Hero() {
         />
       </div>
 
-      {/* BUTOANE DREAPTA SUS */}
-      <div className="absolute top-6 right-6 flex gap-3 z-20">
-        <button className="px-5 py-2 rounded-full bg-white/10 text-white hover:bg-white/20 text-sm font-semibold">
-          Conectare
-        </button>
-        <button className="px-5 py-2 rounded-full bg-orange-600 text-white hover:bg-orange-700 text-sm font-semibold">
-          Înregistrare
-        </button>
+      {/* DREAPTA SUS – Desktop: butoane, Mobile: hamburger */}
+      <div className="absolute top-6 right-6 z-30">
+        {/* Desktop buttons */}
+        <div className="hidden md:flex gap-3">
+          <button className="px-5 py-2 rounded-full bg-white/10 text-white hover:bg-white/20 text-sm font-semibold">
+            Conectare
+          </button>
+          <button className="px-5 py-2 rounded-full bg-orange-600 text-white hover:bg-orange-700 text-sm font-semibold">
+            Înregistrare
+          </button>
+        </div>
+
+        {/* Mobile hamburger */}
+        <div className="md:hidden" ref={menuRef}>
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            className="w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
+            aria-label="Meniu"
+          >
+            <div className="flex flex-col gap-1.5">
+              <span className="block w-5 h-0.5 bg-white/90" />
+              <span className="block w-5 h-0.5 bg-white/90" />
+              <span className="block w-5 h-0.5 bg-white/90" />
+            </div>
+          </button>
+
+          {menuOpen && (
+            <div className="absolute right-0 mt-3 w-44 rounded-2xl bg-[#11172c] border border-white/10 shadow-xl p-2">
+              <button
+                className="w-full text-left px-4 py-2 rounded-xl text-white hover:bg-white/10 text-sm font-semibold"
+                onClick={() => setMenuOpen(false)}
+              >
+                Conectare
+              </button>
+              <button
+                className="w-full text-left px-4 py-2 rounded-xl text-white hover:bg-white/10 text-sm font-semibold"
+                onClick={() => setMenuOpen(false)}
+              >
+                Înregistrare
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* CONTENT */}
       <div className="text-center max-w-2xl w-full">
+        {/* mutăm "Cum funcționează" mai jos pe mobil (2 rânduri) */}
+        <div className="mt-14 md:mt-0" />
+
         <h2 className="text-4xl md:text-6xl font-extrabold text-white mb-6">
           Cum funcționează?
         </h2>
@@ -59,7 +113,7 @@ export default function Hero() {
           Deja este în drum spre tine.
         </p>
 
-        {/* SPAȚIU MAI MARE (3 rânduri) ÎNTRE TEXT ȘI BUTOANE */}
+        {/* spațiu mai mare între text și butoane */}
         <div className="mt-16" />
 
         {/* BUTOANE PRINCIPALE */}
@@ -78,21 +132,26 @@ export default function Hero() {
                        flex flex-col items-center justify-center py-4"
           >
             <span className="text-lg font-extrabold">Comenzi active</span>
-            <span className="text-sm font-medium text-white/70">
+            <span className="text-sm font-medium text-white/80">
               (poți vedea fără cont)
             </span>
           </Link>
         </div>
 
-        {/* SPAȚIU MAI MARE ÎNTRE BUTOANELE MARI ȘI STORE */}
-        <div className="mt-16" />
+        {/* spațiu mai mare până la store buttons */}
+        <div className="mt-20 md:mt-24" />
 
-        <div className="flex flex-row items-center justify-center gap-3 sm:gap-6">
-          <AppStoreButton />
-          <PlayStoreButton />
+        {/* STORE BUTTONS – nu mai gri (forțăm contrast bun) */}
+        <div className="flex flex-row items-center justify-center gap-4 sm:gap-6">
+          <div className="brightness-110 contrast-125">
+            <AppStoreButton />
+          </div>
+          <div className="brightness-110 contrast-125">
+            <PlayStoreButton />
+          </div>
         </div>
 
-        <p className="mt-8 text-sm text-white/60">
+        <p className="mt-8 text-sm text-white/70">
           * Platformă de intermediere. Livratorii sunt responsabili de livrare.
         </p>
       </div>
