@@ -1,72 +1,82 @@
-import React from "react";
+import Image from "next/image";
 import Link from "next/link";
 
 import AppStoreButton from "./AppStoreButton";
 import PlayStoreButton from "./PlayStoreButton";
 
-const Hero: React.FC = () => {
+export default function Hero() {
   return (
-    <section
-      id="hero"
-      className="relative flex items-center justify-center min-h-screen px-5"
-    >
-      {/* Background grid + fade */}
+    <section className="relative min-h-screen flex items-center justify-center px-6 overflow-hidden">
+      {/* BACKGROUND */}
       <div className="absolute inset-0 -z-10">
-        <div className="absolute inset-0 h-full w-full bg-[#0b1020] bg-[linear-gradient(to_right,#ffffff12_1px,transparent_1px),linear-gradient(to_bottom,#ffffff12_1px,transparent_1px)] bg-[size:44px_44px] [mask-image:radial-gradient(ellipse_55%_55%_at_50%_35%,#000_55%,transparent_100%)]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/60" />
+        <div className="absolute inset-0 bg-[#0b1020] bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-[size:44px_44px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_40%,#000_55%,transparent_100%)]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/70" />
       </div>
 
-      <div className="text-center w-full max-w-3xl">
-        {/* BRAND */}
-        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-white">
-          amvenit.ro
-        </h1>
-        <p className="mt-4 text-white/80 text-lg md:text-xl">
-          Servicii locale rapide.
-        </p>
+      {/* HEADER */}
+      <div className="absolute left-8 top-16 hidden md:block">
+  <Image
+    src="/mascota.png"
+    alt="Mascotă amvenit.ro"
+    width={200}
+    height={300}
+    priority
+    className="select-none pointer-events-none"
+  />
+</div>
 
-        {/* BUTOANE */}
-        <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-5">
-          <Link
-            href="/cerere"
-            className="w-full sm:w-[320px] text-center rounded-full bg-orange-600 hover:bg-orange-700 text-white font-extrabold py-5 text-lg shadow-lg"
-          >
-            Plasează o comandă
-          </Link>
+      <div className="absolute top-6 right-6 flex gap-3">
+        <button className="px-5 py-2 rounded-full bg-white/10 text-white hover:bg-white/20 text-sm font-semibold">
+          Conectare
+        </button>
+        <button className="px-5 py-2 rounded-full bg-orange-600 text-white hover:bg-orange-700 text-sm font-semibold">
+          Înregistrare
+        </button>
+      </div>
 
-          <Link
-            href="/comenzi"
-            className="w-full sm:w-[320px] text-center rounded-full bg-slate-700 hover:bg-slate-800 text-white font-extrabold py-5 text-lg shadow-lg"
-          >
-            Comenzi active
-          </Link>
-        </div>
+      {/* CONTENT */}
+      <div className="text-center max-w-2xl w-full">
+        <h2 className="text-4xl md:text-6xl font-extrabold text-white mb-6">
+          Cum funcționează?
+        </h2>
 
-        {/* CUM FUNCTIONEAZA */}
-        <div className="mt-16 space-y-3">
-          <div className="text-2xl md:text-3xl font-extrabold text-white">
-            Cum funcționează
-          </div>
-          <div className="text-white/85 text-lg md:text-xl leading-relaxed">
-            Pui cererea, un livrator o acceptă și gata.
-            <br />
-            Deja este în drum spre tine.
-          </div>
-        </div>
+       <p className="text-lg md:text-2xl text-white/85 leading-relaxed mb-10">
+  Plasezi comanda, cineva o acceptă și gata.
+  <br />
+  Deja este în drum spre tine.
+</p>
 
-        {/* BADGES */}
-        <div className="mt-16 flex flex-col sm:flex-row items-center justify-center gap-4">
-          <AppStoreButton />
-          <PlayStoreButton />
-        </div>
+        <div className="flex flex-col sm:flex-row gap-5 justify-center mb-14 mt-20">
+  {/* Plasează o comandă */}
+  <Link
+    href="/cerere"
+    className="w-full sm:w-[320px] rounded-full bg-orange-600 hover:bg-orange-700 text-white shadow-xl
+               flex items-center justify-center py-5 text-lg font-extrabold"
+  >
+    Plasează o comandă
+  </Link>
 
-        {/* DISCLAIMER */}
-        <div className="mt-8 text-sm text-white/70">
+  {/* Comenzi active */}
+  <Link
+    href="/comenzi"
+    className="w-full sm:w-[320px] rounded-full bg-slate-700 hover:bg-slate-800 text-white shadow-xl
+               flex flex-col items-center justify-center py-4"
+  >
+    <span className="text-lg font-extrabold">Comenzi active</span>
+    <span className="text-sm font-medium text-white/70">
+      (poți vedea fără cont)
+    </span>
+  </Link>
+</div>
+        <div className="mt-40 flex flex-col sm:flex-row items-center justify-center gap-20">
+  <AppStoreButton />
+  <PlayStoreButton />
+</div>
+
+        <p className="text-sm text-white/60">
           * Platformă de intermediere. Livratorii sunt responsabili de livrare.
-        </div>
+        </p>
       </div>
     </section>
   );
-};
-
-export default Hero;
+}
