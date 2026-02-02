@@ -14,6 +14,15 @@ export default function Hero() {
       </div>
 
       {/* HEADER RIGHT (safe-area friendly) */}
+      {/* LOGO (telefon + desktop) */}
+<div className="absolute left-4 top-4 z-20">
+  <Link
+    href="/"
+    className="text-white font-extrabold tracking-tight text-xl md:text-2xl"
+  >
+    amvenit.ro
+  </Link>
+</div>
       <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex gap-2 sm:gap-3 z-20">
         <button className="px-4 sm:px-5 py-2 rounded-full bg-white/10 text-white hover:bg-white/20 text-xs sm:text-sm font-semibold">
           Conectare
@@ -72,10 +81,10 @@ export default function Hero() {
         </div>
 
         {/* APP BUTTONS (pe mobil stack / spacing normal) */}
-        <div className="mt-10 sm:mt-14 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
-          <AppStoreButton />
-          <PlayStoreButton />
-        </div>
+        <div className="mt-10 sm:mt-14 flex flex-row flex-wrap items-center justify-center gap-4 sm:gap-6">
+  <AppStoreButton />
+  <PlayStoreButton />
+</div>
 
         {/* DISCLAIMER */}
         <p className="mt-6 text-xs sm:text-sm text-white/60 px-2">
