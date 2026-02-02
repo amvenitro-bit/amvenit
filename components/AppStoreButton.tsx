@@ -8,13 +8,11 @@ const AppStoreButton = ({ dark }: { dark?: boolean }) => {
     <a
       href={ctaDetails.appStoreUrl}
       className={clsx(
-        "flex items-center justify-center min-w-[205px] mt-3 px-6 h-14 rounded-full w-full sm:w-fit transition",
-        {
-          "bg-white text-black": !dark,
-          "bg-white text-black hover:bg-gray-100": !dark,
-          "bg-white text-black": dark, // păstrăm alb ca să fie lizibil pe background dark
-        }
-      )}
+  "flex items-center justify-center min-w-[205px] mt-3 px-6 h-14 rounded-full w-full sm:w-fit",
+  dark
+    ? "bg-white text-black hover:bg-gray-100"
+    : "bg-white text-black hover:bg-gray-100"
+)}
     >
       {/* ICON */}
       <div className="mr-3 flex items-center">
