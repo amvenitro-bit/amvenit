@@ -1,27 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 function normalizePhone(raw: string) {
   let cleaned = raw.trim().replace(/[^\d+]/g, "");
-  if (cleaned.startsWith("07")) cleaned = "+4" + cleaned;
+
+  // accept RO formats: 07..., +40..., 0040...
+  if (cleaned.startsWith("07")) cleaned = "+4" + cleaned; // 07xxxxxxxx -> +407xxxxxxxx
   if (cleaned.startsWith("0040")) cleaned = "+40" + cleaned.slice(4);
   if (cleaned.startsWith("40") && !cleaned.startsWith("+")) cleaned = "+" + cleaned;
+
+  const digits = cleaned.replace(/\D/g, "");
+  if (digits.length < 10) return null;
   return cleaned;
 }
 
 export default function CererePage() {
-  const supabase = useMemo(
-    () =>
-      createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      ),
-    []
-  );
-
   const [what, setWhat] = useState("");
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
@@ -48,12 +44,25 @@ export default function CererePage() {
 
     setLoading(true);
     try {
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      if (userErr || !userData.user) {
+        throw new Error("Trebuie să fii logat ca să trimiți o cerere.");
+      }
+
+      const normalized = normalizePhone(p);
+      if (!normalized) {
+        throw new Error(
+          "Număr de telefon invalid. Accept: 07 / +40 / 0040 (minim 10 cifre)."
+        );
+      }
+
       const who_where = `${n} • ${a}`;
       const { error } = await supabase.from("orders").insert([
         {
+          client_id: userData.user.id,
           what: w,
           who_where,
-          phone: normalizePhone(p),
+          phone: normalized,
           urgent,
           status: "active",
         },
@@ -113,7 +122,9 @@ export default function CererePage() {
             </div>
 
             <div>
-              <label className="block font-bold text-slate-900 text-lg">Nume</label>
+              <label className="block font-bold text-slate-900 text-lg">
+                Nume
+              </label>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -123,7 +134,9 @@ export default function CererePage() {
             </div>
 
             <div>
-              <label className="block font-bold text-slate-900 text-lg">Adresă</label>
+              <label className="block font-bold text-slate-900 text-lg">
+                Adresă
+              </label>
               <input
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
@@ -133,11 +146,13 @@ export default function CererePage() {
             </div>
 
             <div>
-              <label className="block font-bold text-slate-900 text-lg">Telefon</label>
+              <label className="block font-bold text-slate-900 text-lg">
+                Telefon
+              </label>
               <input
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="ex: 07xxxxxxxx / +40xxxxxxxxx"
+                placeholder="ex: 07xxxxxxxx / +40xxxxxxxxx / 0040xxxxxxxxx"
                 className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-5 py-4 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             </div>
@@ -168,9 +183,27 @@ export default function CererePage() {
 
             {err && (
               <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-800 font-semibold">
-                {err}
+                <p>{err}</p>
+
+                {err.includes("Trebuie să fii logat") && (
+                  <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                    <Link
+                      href="/conectare?next=/cerere"
+                      className="flex-1 text-center rounded-full border border-orange-600 bg-white px-6 py-3 font-extrabold text-orange-600 hover:bg-orange-50"
+                    >
+                      Conectare
+                    </Link>
+                    <Link
+                      href="/inregistrare?next=/cerere"
+                      className="flex-1 text-center rounded-full bg-orange-600 px-6 py-3 font-extrabold text-white hover:bg-orange-700"
+                    >
+                      Înregistrare
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
+
             {done && (
               <div className="rounded-2xl border border-green-200 bg-green-50 px-5 py-4 text-green-800 font-semibold">
                 {done}
@@ -186,7 +219,8 @@ export default function CererePage() {
             </button>
 
             <p className="text-center text-xs text-slate-500 pt-2">
-              * Platformă de intermediere. Livratorii sunt responsabili de livrare.
+              * Platformă de intermediere. Livratorii sunt responsabili de
+              livrare.
             </p>
           </div>
         </section>

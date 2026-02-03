@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import AppStoreButton from "./AppStoreButton";
@@ -10,6 +11,11 @@ import PlayStoreButton from "./PlayStoreButton";
 export default function Hero() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+
+  const pathname = usePathname();
+  const next = encodeURIComponent(pathname || "/");
+  const loginHref = `/conectare?next=${next}`;
+  const registerHref = `/inregistrare?next=${next}`;
 
   // închide meniul dacă dai click în afară
   useEffect(() => {
@@ -57,12 +63,19 @@ export default function Hero() {
       <div className="absolute top-6 right-6 z-30">
         {/* Desktop buttons */}
         <div className="hidden md:flex gap-3">
-          <button className="px-5 py-2 rounded-full bg-white/10 text-white hover:bg-white/20 text-sm font-semibold">
+          <Link
+            href={loginHref}
+            className="px-5 py-2 rounded-full bg-white/10 text-white hover:bg-white/20 text-sm font-semibold"
+          >
             Conectare
-          </button>
-          <button className="px-5 py-2 rounded-full bg-orange-600 text-white hover:bg-orange-700 text-sm font-semibold">
+          </Link>
+
+          <Link
+            href={registerHref}
+            className="px-5 py-2 rounded-full bg-orange-600 text-white hover:bg-orange-700 text-sm font-semibold"
+          >
             Înregistrare
-          </button>
+          </Link>
         </div>
 
         {/* Mobile hamburger */}
@@ -80,19 +93,22 @@ export default function Hero() {
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 mt-3 w-44 rounded-2xl bg-[#11172c] border border-white/10 shadow-xl p-2">
-              <button
-                className="w-full text-left px-4 py-2 rounded-xl text-white hover:bg-white/10 text-sm font-semibold"
+            <div className="absolute right-12 top-0 w-44 rounded-2xl bg-[#11172c] border border-white/10 shadow-xl p-2">
+              <Link
+                href={loginHref}
+                className="w-full block text-left px-4 py-2 rounded-xl text-white hover:bg-white/10 text-sm font-semibold"
                 onClick={() => setMenuOpen(false)}
               >
                 Conectare
-              </button>
-              <button
-                className="w-full text-left px-4 py-2 rounded-xl text-white hover:bg-white/10 text-sm font-semibold"
+              </Link>
+
+              <Link
+                href={registerHref}
+                className="w-full block text-left px-4 py-2 rounded-xl text-white hover:bg-white/10 text-sm font-semibold"
                 onClick={() => setMenuOpen(false)}
               >
                 Înregistrare
-              </button>
+              </Link>
             </div>
           )}
         </div>
