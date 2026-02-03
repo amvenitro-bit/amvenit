@@ -4,12 +4,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useAuth } from "./AuthProvider";
 
 import AppStoreButton from "./AppStoreButton";
 import PlayStoreButton from "./PlayStoreButton";
 
 export default function Hero() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { userId, loading } = useAuth();
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   const pathname = usePathname();
@@ -59,57 +61,80 @@ export default function Hero() {
         />
       </div>
 
-      {/* DREAPTA SUS – Desktop: butoane, Mobile: hamburger */}
+      {/* DREAPTA SUS */}
       <div className="absolute top-6 right-6 z-30">
-        {/* Desktop buttons */}
+        {/* Desktop */}
         <div className="hidden md:flex gap-3">
-          <Link
-            href={loginHref}
-            className="px-5 py-2 rounded-full bg-white/10 text-white hover:bg-white/20 text-sm font-semibold"
-          >
-            Conectare
-          </Link>
-
-          <Link
-            href={registerHref}
-            className="px-5 py-2 rounded-full bg-orange-600 text-white hover:bg-orange-700 text-sm font-semibold"
-          >
-            Înregistrare
-          </Link>
-        </div>
-
-        {/* Mobile hamburger */}
-        <div className="md:hidden" ref={menuRef}>
-          <button
-            onClick={() => setMenuOpen((v) => !v)}
-            className="w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
-            aria-label="Meniu"
-          >
-            <div className="flex flex-col gap-1.5">
-              <span className="block w-5 h-0.5 bg-white/90" />
-              <span className="block w-5 h-0.5 bg-white/90" />
-              <span className="block w-5 h-0.5 bg-white/90" />
-            </div>
-          </button>
-
-          {menuOpen && (
-            <div className="absolute right-12 top-0 w-44 rounded-2xl bg-[#11172c] border border-white/10 shadow-xl p-2">
+          {loading ? null : userId ? (
+            <Link
+              href="/cont"
+              className="px-5 py-2 rounded-full bg-orange-600 text-white hover:bg-orange-700 text-sm font-semibold"
+            >
+              Contul meu
+            </Link>
+          ) : (
+            <>
               <Link
                 href={loginHref}
-                className="w-full block text-left px-4 py-2 rounded-xl text-white hover:bg-white/10 text-sm font-semibold"
-                onClick={() => setMenuOpen(false)}
+                className="px-5 py-2 rounded-full bg-white/10 text-white hover:bg-white/20 text-sm font-semibold"
               >
                 Conectare
               </Link>
 
               <Link
                 href={registerHref}
-                className="w-full block text-left px-4 py-2 rounded-xl text-white hover:bg-white/10 text-sm font-semibold"
-                onClick={() => setMenuOpen(false)}
+                className="px-5 py-2 rounded-full bg-orange-600 text-white hover:bg-orange-700 text-sm font-semibold"
               >
                 Înregistrare
               </Link>
-            </div>
+            </>
+          )}
+        </div>
+
+        {/* Mobile */}
+        <div className="md:hidden" ref={menuRef}>
+          {loading ? null : userId ? (
+            // logat pe mobil: fără hamburger, doar "Contul meu"
+            <Link
+              href="/cont"
+              className="px-5 py-2 rounded-full bg-orange-600 text-white hover:bg-orange-700 text-sm font-semibold"
+            >
+              Contul meu
+            </Link>
+          ) : (
+            // nelogat pe mobil: hamburger + meniu spre stânga
+            <>
+              <button
+                onClick={() => setMenuOpen((v) => !v)}
+                className="w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
+                aria-label="Meniu"
+              >
+                <div className="flex flex-col gap-1.5">
+                  <span className="block w-5 h-0.5 bg-white/90" />
+                  <span className="block w-5 h-0.5 bg-white/90" />
+                  <span className="block w-5 h-0.5 bg-white/90" />
+                </div>
+              </button>
+
+              {menuOpen && (
+                <div className="absolute right-12 top-0 w-44 rounded-2xl bg-[#11172c] border border-white/10 shadow-xl p-2">
+                  <Link
+                    href={loginHref}
+                    className="w-full block text-left px-4 py-2 rounded-xl text-white hover:bg-white/10 text-sm font-semibold"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Conectare
+                  </Link>
+                  <Link
+                    href={registerHref}
+                    className="w-full block text-left px-4 py-2 rounded-xl text-white hover:bg-white/10 text-sm font-semibold"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Înregistrare
+                  </Link>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
