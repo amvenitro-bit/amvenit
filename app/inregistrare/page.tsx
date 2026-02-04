@@ -1,14 +1,11 @@
 import InregistrareClient from "./InregistrareClient";
 
-export default function Page({
+export default async function Page({
   searchParams,
 }: {
-  searchParams?: { next?: string };
+  searchParams: Promise<{ next?: string }>;
 }) {
-  const next =
-    typeof searchParams?.next === "string" && searchParams.next.length > 0
-      ? searchParams.next
-      : "/";
-
+  const sp = await searchParams;
+  const next = typeof sp?.next === "string" && sp.next.length > 0 ? sp.next : "/";
   return <InregistrareClient next={next} />;
 }

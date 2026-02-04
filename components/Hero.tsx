@@ -11,7 +11,7 @@ import PlayStoreButton from "./PlayStoreButton";
 
 export default function Hero() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const { userId, loading } = useAuth();
+  const { userId, authLoading } = useAuth();
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   const pathname = usePathname();
@@ -28,6 +28,11 @@ export default function Hero() {
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
+
+  // când te loghezi, închide meniul mobil
+  useEffect(() => {
+    if (userId) setMenuOpen(false);
+  }, [userId]);
 
   return (
     <section className="relative min-h-screen flex items-center justify-center px-6 overflow-hidden">
@@ -65,7 +70,7 @@ export default function Hero() {
       <div className="absolute top-6 right-6 z-30">
         {/* Desktop */}
         <div className="hidden md:flex gap-3">
-          {loading ? null : userId ? (
+          {authLoading ? null : userId ? (
             <Link
               href="/cont"
               className="px-5 py-2 rounded-full bg-orange-600 text-white hover:bg-orange-700 text-sm font-semibold"
@@ -80,7 +85,6 @@ export default function Hero() {
               >
                 Conectare
               </Link>
-
               <Link
                 href={registerHref}
                 className="px-5 py-2 rounded-full bg-orange-600 text-white hover:bg-orange-700 text-sm font-semibold"
@@ -93,8 +97,8 @@ export default function Hero() {
 
         {/* Mobile */}
         <div className="md:hidden" ref={menuRef}>
-          {loading ? null : userId ? (
-            // logat pe mobil: fără hamburger, doar "Contul meu"
+          {authLoading ? null : userId ? (
+            // când e logat: NU arătăm hamburger, doar buton portocaliu
             <Link
               href="/cont"
               className="px-5 py-2 rounded-full bg-orange-600 text-white hover:bg-orange-700 text-sm font-semibold"
@@ -102,7 +106,6 @@ export default function Hero() {
               Contul meu
             </Link>
           ) : (
-            // nelogat pe mobil: hamburger + meniu spre stânga
             <>
               <button
                 onClick={() => setMenuOpen((v) => !v)}
@@ -117,6 +120,7 @@ export default function Hero() {
               </button>
 
               {menuOpen && (
+                // se extinde spre stânga (către mascotă)
                 <div className="absolute right-12 top-0 w-44 rounded-2xl bg-[#11172c] border border-white/10 shadow-xl p-2">
                   <Link
                     href={loginHref}
@@ -141,7 +145,6 @@ export default function Hero() {
 
       {/* CONTENT */}
       <div className="text-center max-w-2xl w-full">
-        {/* mutăm "Cum funcționează" mai jos pe mobil (2 rânduri) */}
         <div className="mt-14 md:mt-0" />
 
         <h2 className="text-4xl md:text-6xl font-extrabold text-white mb-6">
@@ -154,23 +157,19 @@ export default function Hero() {
           Deja este în drum spre tine.
         </p>
 
-        {/* spațiu mai mare între text și butoane */}
         <div className="mt-16" />
 
-        {/* BUTOANE PRINCIPALE */}
         <div className="flex flex-col sm:flex-row gap-5 justify-center">
           <Link
             href="/cerere"
-            className="w-full sm:w-[320px] rounded-full bg-orange-600 hover:bg-orange-700 text-white shadow-xl
-                       flex items-center justify-center py-5 text-lg font-extrabold"
+            className="w-full sm:w-[320px] rounded-full bg-orange-600 hover:bg-orange-700 text-white shadow-xl flex items-center justify-center py-5 text-lg font-extrabold"
           >
             Plasează o comandă
           </Link>
 
           <Link
             href="/comenzi"
-            className="w-full sm:w-[320px] rounded-full bg-slate-700 hover:bg-slate-800 text-white shadow-xl
-                       flex flex-col items-center justify-center py-4"
+            className="w-full sm:w-[320px] rounded-full bg-slate-700 hover:bg-slate-800 text-white shadow-xl flex flex-col items-center justify-center py-4"
           >
             <span className="text-lg font-extrabold">Comenzi active</span>
             <span className="text-sm font-medium text-white/80">
@@ -179,10 +178,8 @@ export default function Hero() {
           </Link>
         </div>
 
-        {/* spațiu mai mare până la store buttons */}
         <div className="mt-20 md:mt-24" />
 
-        {/* STORE BUTTONS – nu mai gri (forțăm contrast bun) */}
         <div className="flex flex-row items-center justify-center gap-4 sm:gap-6">
           <div className="brightness-110 contrast-125">
             <AppStoreButton />
