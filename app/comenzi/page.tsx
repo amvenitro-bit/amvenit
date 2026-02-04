@@ -2,422 +2,330 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/AuthProvider";
 
-type Order = {
+type OrderRow = {
   id: string;
   created_at: string;
-  what: string | null;
-  who_where: string | null;
+  what: string;
+  who_where: string;
   phone: string | null;
   urgent: boolean | null;
   status: string | null;
-  accepted_at: string | null;
+
+  accepted_at?: string | null;
+  accepted_by_id?: string | null;
+  accepted_by_name?: string | null;
+  accepted_by_phone?: string | null;
 };
 
-function formatTime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString("ro-RO", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function maskPhone(phone: string | null) {
+  if (!phone) return "";
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 6) return "07********";
+  const start = phone.slice(0, Math.min(4, phone.length));
+  const end = phone.slice(-3);
+  return `${start}*****${end}`;
 }
 
-function normalizePhone(raw: string) {
-  let cleaned = raw.trim().replace(/[^\d+]/g, "");
-  if (cleaned.startsWith("07")) cleaned = "+4" + cleaned;
-  if (cleaned.startsWith("0040")) cleaned = "+40" + cleaned.slice(4);
-  if (cleaned.startsWith("40") && !cleaned.startsWith("+")) cleaned = "+" + cleaned;
-  return cleaned;
+function firstPart(s: string) {
+  return (s || "").split("•")[0]?.trim() || s || "";
 }
 
-function buildWhatsAppLink(phone: string, text: string) {
-  return `https://wa.me/${normalizePhone(phone).replace("+", "")}?text=${encodeURIComponent(
-    text
-  )}`;
-}
-
-function buildSmsLink(phone: string, text: string) {
-  return `sms:${normalizePhone(phone)}?&body=${encodeURIComponent(text)}`;
+function secondPart(s: string) {
+  const parts = (s || "").split("•");
+  return (parts[1] || "").trim();
 }
 
 export default function ComenziPage() {
-  const supabase = useMemo(
-    () =>
-      createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      ),
-    []
-  );
+  const router = useRouter();
+  const { userId, role, authLoading } = useAuth();
 
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [rows, setRows] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
 
-  // PIN gating
-  const [pin, setPin] = useState("");
-  const [hasPin, setHasPin] = useState(false);
-  const [pinOk, setPinOk] = useState(false);
+  const isLoggedIn = !!userId;
+  const canAccept = !!userId && role === "courier";
 
-  // modal accept
-  const [acceptOpen, setAcceptOpen] = useState(false);
-  const [acceptTarget, setAcceptTarget] = useState<Order | null>(null);
-  const [pinInput, setPinInput] = useState("");
-  const [pinErr, setPinErr] = useState<string | null>(null);
-
-  // chat modal
-  const [chatOpen, setChatOpen] = useState(false);
-  const [chatPhone, setChatPhone] = useState("");
-  const [chatText, setChatText] = useState("");
-  const [chatTitle, setChatTitle] = useState("");
+  const nextHref = useMemo(() => encodeURIComponent("/comenzi"), []);
+  const loginHref = `/conectare?next=${nextHref}`;
+  const registerHref = `/inregistrare?next=${nextHref}`;
 
   async function load() {
+    setErr(null);
     setLoading(true);
-    const { data } = await supabase
-      .from("orders")
-      .select("*")
-      .order("created_at", { ascending: false });
 
-    setOrders((data as Order[]) || []);
-    setLoading(false);
-  }
+    try {
+      // IMPORTANT:
+      // - afișăm doar comenzi "active" care NU sunt acceptate
+      // - asta face ca ele să dispară imediat din "Cereri active" pentru anon
+      const { data, error } = await supabase
+        .from("orders")
+        .select(
+          "id, created_at, what, who_where, phone, urgent, status, accepted_at, accepted_by_id, accepted_by_name, accepted_by_phone"
+        )
+        .eq("status", "active")
+        .is("accepted_by_id", null)
+        .order("created_at", { ascending: false });
 
-  async function validatePin(p: string) {
-    const cleaned = p.trim();
-    if (!cleaned) return false;
+      if (error) throw new Error(error.message);
 
-    const { data } = await supabase
-      .from("couriers")
-      .select("id, pin, active")
-      .eq("pin", cleaned)
-      .eq("active", true)
-      .maybeSingle();
-
-    return !!data;
+      setRows((data || []) as OrderRow[]);
+    } catch (e: any) {
+      setErr(e?.message ?? "Eroare la încărcare comenzi.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 10000);
+    const t = setInterval(load, 8000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    const saved = localStorage.getItem("courier_pin") || "";
-    if (saved) {
-      setPin(saved);
-      setHasPin(true);
-      validatePin(saved).then((ok) => setPinOk(ok));
+  async function acceptOrder(orderId: string) {
+    if (!canAccept) return;
+
+    try {
+      const { data: u, error: uErr } = await supabase.auth.getUser();
+      if (uErr) throw new Error(uErr.message);
+      if (!u?.user) throw new Error("Trebuie să fii logat.");
+
+      // profilul livratorului (nume/telefon)
+      const { data: prof, error: pErr } = await supabase
+        .from("profiles")
+        .select("full_name, phone, role")
+        .eq("id", u.user.id)
+        .single();
+
+      if (pErr) throw new Error(pErr.message);
+      if (!prof || prof.role !== "courier") {
+        throw new Error("Doar livratorii pot accepta comenzi.");
+      }
+
+      // UPDATE cu protecție anti-dublu-accept:
+      // - status încă active
+      // - accepted_by_id încă null
+      const { error } = await supabase
+        .from("orders")
+        .update({
+          status: "accepted",
+          accepted_at: new Date().toISOString(),
+          accepted_by_id: u.user.id,
+          accepted_by_name: prof.full_name ?? null,
+          accepted_by_phone: prof.phone ?? null,
+        })
+        .eq("id", orderId)
+        .eq("status", "active")
+        .is("accepted_by_id", null);
+
+      if (error) {
+        // aici intră fix eroarea ta: RLS
+        throw new Error(error.message);
+      }
+
+      // refresh listă (comanda dispare de aici)
+      await load();
+
+      // du-l direct în comenzile lui
+      router.push("/comenzile-mele");
+    } catch (e: any) {
+      alert(e?.message ?? "Nu s-a putut accepta comanda.");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const active = orders.filter((o) => (o.status ?? "active") === "active");
-  const completed = orders.filter((o) => o.status === "completed");
-
-  function requirePinThen(action: () => void) {
-    if (pinOk) return action();
-    setPinErr(null);
-    setPinInput("");
-    setAcceptTarget(null);
-    setAcceptOpen(true);
-  }
-
-  async function confirmPinOnly() {
-    setPinErr(null);
-    const ok = await validatePin(pinInput);
-    if (!ok) {
-      setPinErr("PIN invalid.");
-      return;
-    }
-    localStorage.setItem("courier_pin", pinInput.trim());
-    setPin(pinInput.trim());
-    setHasPin(true);
-    setPinOk(true);
-    setAcceptOpen(false);
-  }
-
-  function openAccept(o: Order) {
-    if (pinOk) {
-      setAcceptTarget(o);
-      setPinErr(null);
-      setAcceptOpen(true);
-      return;
-    }
-    // dacă nu are PIN, deschidem modal doar pentru PIN
-    setAcceptTarget(o);
-    setPinErr(null);
-    setAcceptOpen(true);
-  }
-
-  async function acceptOrder(o: Order) {
-    await supabase
-      .from("orders")
-      .update({ status: "completed", accepted_at: new Date().toISOString() })
-      .eq("id", o.id);
-
-    setAcceptOpen(false);
-    setAcceptTarget(null);
-    load();
-  }
-
-  function openChat(o: Order) {
-    if (!o.phone) return;
-    setChatPhone(o.phone);
-    setChatTitle(o.who_where || "");
-    setChatText(
-      `Salut! Am văzut cererea ta pe amvenit.ro: "${o.what}". Sunt disponibil să ajut.`
-    );
-    setChatOpen(true);
   }
 
   return (
-    <main className="min-h-screen relative px-5 py-14">
-      {/* BACKGROUND ca pe home */}
+    <main className="min-h-screen relative px-6 py-10 overflow-hidden">
+      {/* BACKGROUND identic cu Home */}
       <div className="absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-hero-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_60%,transparent_100%)]" />
+        <div className="absolute inset-0 bg-[#0b1020] bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-[size:44px_44px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_40%,#000_55%,transparent_100%)]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/70" />
       </div>
 
-      <div className="mx-auto w-full max-w-3xl">
-        <div className="text-center mb-10">
+      <div className="max-w-3xl mx-auto">
+        {/* TOP */}
+        <div className="text-center">
           <Link
             href="/"
-            className="inline-block text-sm font-semibold text-orange-600 hover:text-orange-700 underline underline-offset-4"
+            className="inline-block text-sm font-semibold text-orange-400 hover:text-orange-300 underline underline-offset-4"
           >
             ← Înapoi
           </Link>
 
-          <h1 className="mt-5 text-5xl font-extrabold text-slate-900">
-            amvenit.ro
-          </h1>
-          <p className="mt-3 text-base md:text-lg text-slate-600">
-            Comenzi active
-          </p>
+          <h1 className="mt-6 text-5xl font-extrabold text-white">amvenit.ro</h1>
+          <p className="mt-3 text-white/80">Comenzi active</p>
         </div>
 
-        <section className="bg-white/80 backdrop-blur rounded-3xl shadow-xl border border-black/5 p-6 md:p-8 space-y-6">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="text-lg font-extrabold text-slate-900">Cereri active</div>
-
-            <div className="text-sm text-slate-600">
-              {hasPin && pinOk ? (
-                <span className="font-semibold">
-                  PIN activ ✅
-                </span>
-              ) : (
-                <button
-                  onClick={() => requirePinThen(() => {})}
-                  className="underline text-orange-700 hover:text-orange-800 font-semibold"
-                >
-                  Introdu PIN ca să vezi Chat/Sună
-                </button>
-              )}
+        {!isLoggedIn && (
+          <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-white/90">
+            <div className="font-extrabold">Fără cont vezi doar sumarul.</div>
+            <div className="mt-1 text-sm text-white/80">
+              Pentru Chat / Acceptă / Sună trebuie să te conectezi.
             </div>
-          </div>
-
-          {loading && <div className="text-slate-600">Se încarcă...</div>}
-
-          {!loading && active.length === 0 && (
-            <div className="text-slate-600">Nu sunt cereri active.</div>
-          )}
-
-          <div className="space-y-4">
-            {active.map((o) => (
-              <div key={o.id} className="border border-slate-200 rounded-3xl p-6 bg-white">
-                <div className="text-center text-xl font-extrabold text-slate-900">
-                  {o.who_where}
-                </div>
-
-                <div className="text-center text-lg mt-1 text-slate-800">
-                  {o.what}
-                </div>
-
-                <div className="mt-3 flex flex-col items-center gap-2">
-                  {o.urgent && (
-                    <span className="rounded-full bg-red-100 text-red-800 px-4 py-2 text-xs font-bold">
-                      URGENT (
-                      <span className="font-extrabold text-sm">+10 LEI</span> la total dacă ajungi
-                      în 30 minute de la acceptarea comenzii.)
-                    </span>
-                  )}
-                  <div className="text-xs text-slate-500">
-                    {formatTime(o.created_at)}
-                  </div>
-                </div>
-
-                <div className="mt-5 grid grid-cols-3 gap-3">
-                  {/* Chat - doar cu PIN */}
-                  <button
-                    onClick={() => (pinOk ? openChat(o) : openAccept(o))}
-                    className="rounded-full border border-orange-200 bg-orange-50 hover:bg-orange-100 py-3 text-sm font-semibold text-orange-700"
-                  >
-                    Chat
-                  </button>
-
-                  {/* Acceptă */}
-                  <button
-                    onClick={() => openAccept(o)}
-                    className="rounded-full bg-green-600 hover:bg-green-700 py-4 text-base font-extrabold text-white shadow"
-                  >
-                    Acceptă
-                  </button>
-
-                  {/* Sună - doar cu PIN */}
-                  {pinOk ? (
-                    <a
-                      href={`tel:${normalizePhone(o.phone || "")}`}
-                      className="text-center rounded-full border border-orange-200 bg-orange-50 hover:bg-orange-100 py-3 text-sm font-semibold text-orange-700"
-                    >
-                      Sună
-                    </a>
-                  ) : (
-                    <button
-                      onClick={() => openAccept(o)}
-                      className="rounded-full border border-orange-200 bg-orange-50 hover:bg-orange-100 py-3 text-sm font-semibold text-orange-700"
-                    >
-                      Sună
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* ISTORIC */}
-          <div className="pt-4 border-t border-slate-200">
-            <h3 className="text-sm font-bold text-slate-700">
-              Comenzi completate (istoric)
-            </h3>
-            <div className="mt-2 space-y-2">
-              {completed.map((o) => (
-                <div
-                  key={o.id}
-                  className="bg-slate-100 text-slate-600 rounded-2xl px-4 py-3"
-                >
-                  <div className="font-semibold">{o.who_where}</div>
-                  <div className="text-xs">{formatTime(o.created_at)}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <p className="text-xs text-slate-500 pt-2">
-            * Platformă de intermediere. Livratorii sunt responsabili de livrare.
-          </p>
-        </section>
-      </div>
-
-      {/* MODAL PIN / ACCEPT */}
-      {acceptOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-sm space-y-4">
-            <div className="text-2xl font-extrabold text-slate-900">
-              Acceptă comanda
-            </div>
-
-            <div className="text-slate-600">
-              Introdu PIN-ul primit de la admin.
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-900">PIN</label>
-              <input
-                value={pinInput}
-                onChange={(e) => setPinInput(e.target.value)}
-                placeholder="Ex: 123456"
-                className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-5 py-4 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
-            </div>
-
-            {pinErr && (
-              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-800 font-semibold">
-                {pinErr}
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <button
-                onClick={() => {
-                  setAcceptOpen(false);
-                  setAcceptTarget(null);
-                }}
-                className="rounded-full border py-3 font-bold"
-              >
-                Renunță
-              </button>
-
-              <button
-                onClick={async () => {
-                  const ok = await validatePin(pinInput);
-                  if (!ok) {
-                    setPinErr("PIN invalid.");
-                    return;
-                  }
-                  localStorage.setItem("courier_pin", pinInput.trim());
-                  setPin(pinInput.trim());
-                  setHasPin(true);
-                  setPinOk(true);
-
-                  // dacă avem o comandă selectată, o acceptăm imediat
-                  if (acceptTarget) {
-                    await acceptOrder(acceptTarget);
-                  } else {
-                    setAcceptOpen(false);
-                  }
-                }}
-                className="rounded-full bg-green-600 hover:bg-green-700 py-3 font-extrabold text-white"
-              >
-                Confirmă
-              </button>
-            </div>
-
-            <div className="text-center text-sm pt-2">
+            <div className="mt-4 flex flex-col sm:flex-row gap-3">
               <Link
-                href="/devino-livrator"
-                className="text-orange-700 hover:text-orange-800 underline"
+                href={loginHref}
+                className="flex-1 text-center rounded-full border border-orange-400 bg-transparent px-6 py-3 font-extrabold text-orange-300 hover:bg-white/10"
               >
-                Nu ai PIN? Devino livrator
+                Conectare
+              </Link>
+              <Link
+                href={registerHref}
+                className="flex-1 text-center rounded-full bg-orange-600 px-6 py-3 font-extrabold text-white hover:bg-orange-700"
+              >
+                Înregistrare
               </Link>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* POPUP CHAT */}
-      {chatOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-sm space-y-3">
-            <div className="font-extrabold text-slate-900">
-              Chat pentru: {chatTitle}
+        <div className="mt-8">
+          {(authLoading || loading) && (
+            <div className="text-center text-white/80 font-semibold">
+              Se încarcă...
             </div>
+          )}
 
-            <a
-              href={buildWhatsAppLink(chatPhone, chatText)}
-              className="block text-center rounded-2xl bg-green-600 py-3 text-white font-extrabold"
-            >
-              WhatsApp
-            </a>
+          {err && (
+            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-800 font-semibold">
+              {err}
+              <div className="mt-2 text-sm font-normal">
+                Dacă vezi mesajul cu RLS (policy), înseamnă că trebuie setate
+                policy-urile în Supabase (pasul de SQL).
+              </div>
+            </div>
+          )}
 
-            <a
-              href={buildSmsLink(chatPhone, chatText)}
-              className="block text-center rounded-2xl bg-blue-600 py-3 text-white font-extrabold"
-            >
-              Mesaj normal
-            </a>
+          {!loading && rows.length === 0 && (
+            <div className="mt-6 text-center text-white/75">
+              Momentan nu sunt comenzi active.
+            </div>
+          )}
 
-            <button
-              onClick={() => setChatOpen(false)}
-              className="w-full rounded-2xl border py-3 font-bold"
-            >
-              Închide
-            </button>
+          <div className="mt-8 space-y-6">
+            {rows.map((o) => {
+              const name = firstPart(o.who_where);
+              const addr = secondPart(o.who_where);
+
+              const displayName = !isLoggedIn
+                ? name
+                  ? `${name.split(" ")[0]}…`
+                  : "Client…"
+                : name;
+
+              const displayAddr = !isLoggedIn
+                ? addr
+                  ? `${addr.split(",")[0]}…`
+                  : "Zonă…"
+                : addr;
+
+              const displayPhone = !isLoggedIn ? maskPhone(o.phone) : o.phone ?? "";
+
+              return (
+                <div
+                  key={o.id}
+                  className="rounded-3xl bg-white/85 backdrop-blur border border-black/5 shadow-xl p-6"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="text-xl font-extrabold text-slate-900 truncate">
+                        {displayName} {displayAddr ? `• ${displayAddr}` : ""}
+                      </div>
+
+                      <div className="mt-2 text-slate-800 font-semibold">
+                        {o.what}
+                        {o.urgent ? (
+                          <span className="ml-2 inline-block rounded-full bg-orange-600 text-white px-3 py-1 text-xs font-extrabold">
+                            URGENT
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <div className="mt-2 text-sm text-slate-600">
+                        {new Date(o.created_at).toLocaleString("ro-RO")}
+                      </div>
+
+                      <div className="mt-2 text-sm text-slate-700">
+                        Telefon:{" "}
+                        <span className="font-bold">{displayPhone}</span>
+                      </div>
+                    </div>
+
+                    {/* badge */}
+                    <div className="shrink-0">
+                      <span className="inline-block rounded-full bg-slate-900 text-white px-3 py-1 text-xs font-extrabold">
+                        COMANDĂ ACTIVĂ
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Buttons */}
+                  <div className="mt-6 grid grid-cols-3 gap-3">
+                    <button
+                      disabled={!isLoggedIn}
+                      className={`rounded-full px-4 py-3 font-extrabold ${
+                        !isLoggedIn
+                          ? "bg-slate-200 text-slate-500 cursor-not-allowed"
+                          : "bg-orange-100 text-orange-700 hover:bg-orange-200"
+                      }`}
+                      onClick={() => {
+                        if (!isLoggedIn) return;
+                        alert("Chat-ul îl activăm după pasul de thread + acceptare.");
+                      }}
+                    >
+                      Chat
+                    </button>
+
+                    <button
+                      disabled={!canAccept}
+                      className={`rounded-full px-4 py-3 font-extrabold ${
+                        !canAccept
+                          ? "bg-slate-200 text-slate-500 cursor-not-allowed"
+                          : "bg-green-600 text-white hover:bg-green-700"
+                      }`}
+                      onClick={() => acceptOrder(o.id)}
+                    >
+                      Acceptă
+                    </button>
+
+                    <button
+                      disabled={!isLoggedIn}
+                      className={`rounded-full px-4 py-3 font-extrabold ${
+                        !isLoggedIn
+                          ? "bg-slate-200 text-slate-500 cursor-not-allowed"
+                          : "bg-orange-100 text-orange-700 hover:bg-orange-200"
+                      }`}
+                      onClick={() => {
+                        if (!isLoggedIn) return;
+                        alert("Sună: îl activăm după acceptare (tel:).");
+                      }}
+                    >
+                      Sună
+                    </button>
+                  </div>
+
+                  {!isLoggedIn && (
+                    <div className="mt-4 text-center text-sm text-slate-700 font-semibold">
+                      Conectează-te ca să poți accepta / suna / chat.
+                    </div>
+                  )}
+
+                  {isLoggedIn && role !== "courier" && (
+                    <div className="mt-4 text-center text-sm text-slate-700 font-semibold">
+                      “Acceptă” este disponibil doar pentru livratori.
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
-      )}
+      </div>
     </main>
   );
 }
