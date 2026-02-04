@@ -1,6 +1,13 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { supabase } from "@/lib/supabase";
 
 type UserRole = "client" | "courier" | null;
@@ -16,13 +23,13 @@ type ProfileRow = {
 type Profile = ProfileRow | null;
 
 type AuthCtx = {
-  authLoading: boolean;     // doar sesiunea
-  profileLoading: boolean;  // doar profilul
+  authLoading: boolean; // doar sesiunea
+  profileLoading: boolean; // doar profilul
   userId: string | null;
   email: string | null;
   role: UserRole;
   profile: Profile;
-  refreshProfile: () => Promise<void>;
+  refreshProfile: (uidOverride?: string | null) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -39,8 +46,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const inflightProfile = useRef<Promise<void> | null>(null);
   const profileTimeoutMs = 12000;
 
-  async function refreshProfile(): Promise<void> {
-    if (!userId) {
+  async function clearLocalSession() {
+    // curăță state + sesiune locală ca să nu mai apară refresh token errors
+    try {
+      await supabase.auth.signOut({ scope: "local" });
+    } catch {
+      // ignore
+    } finally {
+      setUserId(null);
+      setEmail(null);
+      setProfile(null);
+    }
+  }
+
+  async function refreshProfile(uidOverride?: string | null): Promise<void> {
+    const uid = uidOverride ?? userId;
+
+    if (!uid) {
       setProfile(null);
       return;
     }
@@ -59,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const fetcher = supabase
           .from("profiles")
           .select("id, role, full_name, phone, created_at")
-          .eq("id", userId)
+          .eq("id", uid)
           .maybeSingle()
           .then(({ data, error }) => {
             if (error) throw error;
@@ -82,7 +104,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function bootstrap() {
     setAuthLoading(true);
     try {
-      const { data } = await supabase.auth.getSession();
+      const { data, error } = await supabase.auth.getSession();
+
+      // IMPORTANT: dacă există eroare de sesiune / refresh token, curățăm local
+      if (error) {
+        await clearLocalSession();
+        return;
+      }
+
       const session = data.session;
 
       if (!session?.user) {
@@ -95,48 +124,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUserId(session.user.id);
       setEmail(session.user.email ?? null);
 
-      // pornește profilul async (fără să blocheze auth)
-      void refreshProfile();
+      // pornește profilul async (cu uid explicit, nu din state)
+      void refreshProfile(session.user.id);
     } finally {
       setAuthLoading(false);
     }
   }
 
   useEffect(() => {
-    void bootstrap();
+  void bootstrap();
 
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session?.user) {
-        setUserId(null);
-        setEmail(null);
-        setProfile(null);
-        setAuthLoading(false);
-        return;
-      }
-
-      setUserId(session.user.id);
-      setEmail(session.user.email ?? null);
-
-      // profil async
-      void refreshProfile();
-    });
-
-    return () => {
-      data.subscription.unsubscribe();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const role: UserRole = useMemo(() => (profile?.role ?? null), [profile]);
-
-  async function signOut() {
-    try {
-      await supabase.auth.signOut();
-    } finally {
+  const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // dacă nu mai există user (logout / expirare / sesiune invalidă)
+    if (!session?.user) {
       setUserId(null);
       setEmail(null);
       setProfile(null);
+      setAuthLoading(false);
+      return;
     }
+
+    setUserId(session.user.id);
+    setEmail(session.user.email ?? null);
+
+    // profil async cu uid explicit
+    void refreshProfile(session.user.id);
+
+    setAuthLoading(false);
+  });
+
+  return () => {
+    data.subscription.unsubscribe();
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+
+  const role: UserRole = useMemo(() => profile?.role ?? null, [profile]);
+
+  async function signOut() {
+    await clearLocalSession();
   }
 
   const value: AuthCtx = {

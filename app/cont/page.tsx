@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function ContPage() {
   const router = useRouter();
@@ -22,7 +22,7 @@ export default function ContPage() {
   if (authLoading) {
     return (
       <main className="min-h-screen flex items-center justify-center px-6">
-        <div className="text-slate-700 font-semibold">Se încarcă...</div>
+        <div className="text-slate-700 font-semibold">Se verifică sesiunea…</div>
       </main>
     );
   }
@@ -30,16 +30,24 @@ export default function ContPage() {
   if (!userId) return null;
 
   return (
-    <main className="min-h-screen px-6 py-10">
-      <div className="absolute top-6 left-6 z-30">
-  <Link
-    href="/"
-    className="px-5 py-2 rounded-full bg-white/10 text-white hover:bg-white/20 text-sm font-semibold"
-  >
-    ← Acasă
-  </Link>
-</div>
-      <div className="max-w-2xl mx-auto bg-white/80 backdrop-blur rounded-3xl shadow-xl border border-black/5 p-6 md:p-8">
+    <main className="min-h-screen relative flex items-center justify-center px-6 py-10 overflow-hidden">
+      {/* BACKGROUND identic cu Home */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute inset-0 bg-[#0b1020] bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-[size:44px_44px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_40%,#000_55%,transparent_100%)]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/70" />
+      </div>
+
+      {/* Top-right home */}
+      <div className="absolute top-6 right-6 z-30">
+        <Link
+          href="/"
+          className="px-5 py-2 rounded-full bg-white/10 text-white hover:bg-white/20 text-sm font-semibold"
+        >
+          Acasă
+        </Link>
+      </div>
+
+      <div className="w-full max-w-2xl bg-white/85 backdrop-blur rounded-3xl shadow-xl border border-white/10 p-6 md:p-8">
         <h1 className="text-3xl font-extrabold text-slate-900">Contul meu</h1>
 
         <div className="mt-6 space-y-3 text-slate-800">
@@ -58,28 +66,22 @@ export default function ContPage() {
         </div>
 
         <div className="mt-8 flex flex-col sm:flex-row gap-3">
-          <Link
-            href="/comenzile-mele"
-            className="flex-1 text-center rounded-full bg-orange-600 px-6 py-3 font-extrabold text-white hover:bg-orange-700"
+          <button
+            onClick={() => alert("Editează contul – în curând.")}
+            className="flex-1 rounded-full bg-orange-600 px-6 py-3 font-extrabold text-white hover:bg-orange-700"
           >
-            Comenzile mele
-          </Link>
+            Editează contul
+          </button>
 
           <button
-  onClick={async () => {
-    await signOut();
-    window.location.href = "/"; // hard redirect, bate orice redirect de guard
-  }}
-  className="flex-1 rounded-full border border-orange-600 bg-white px-6 py-3 font-extrabold text-orange-600 hover:bg-orange-50"
->
-  Delogare
-</button>
-<Link
-  href="/"
-  className="mt-4 block text-center text-sm font-semibold text-slate-600 hover:text-slate-800 underline"
->
-  Înapoi la pagina principală
-</Link>
+            onClick={async () => {
+              await signOut();
+              router.replace("/");
+            }}
+            className="flex-1 rounded-full border border-orange-600 bg-white px-6 py-3 font-extrabold text-orange-600 hover:bg-orange-50"
+          >
+            Delogare
+          </button>
         </div>
       </div>
     </main>
