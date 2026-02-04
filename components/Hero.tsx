@@ -5,16 +5,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "./AuthProvider";
-import { supabase } from "@/lib/supabase";
 
 import AppStoreButton from "./AppStoreButton";
 import PlayStoreButton from "./PlayStoreButton";
 
-type Role = "client" | "courier" | null;
-
 export default function Hero() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const { userId, authLoading, refreshProfile } = useAuth();
+  const { userId, role, authLoading, refreshProfile } = useAuth();
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   const pathname = usePathname();
@@ -24,9 +21,17 @@ export default function Hero() {
 
   const isLoggedIn = !!userId;
 
-  // 🔒 Rol “sigur” (citit direct din DB), ca să nu mai existe flicker pe Vercel
-  const [roleDb, setRoleDb] = useState<Role>(null);
-  const [roleLoading, setRoleLoading] = useState(false);
+  // IMPORTANT: dacă ești logat, trage profilul/rolul imediat
+  useEffect(() => {
+    if (userId) {
+      refreshProfile();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  // Dacă userId există dar role încă nu e încărcat -> nu afișăm UI client (ca să nu apară “Plasează o comandă”)
+  const roleReady = !authLoading && (!userId || !!role);
+  const isCourier = roleReady && isLoggedIn && role === "courier";
 
   // Toggle Disponibil/Indisponibil (UI only momentan) – persistă în localStorage
   const [isAvailable, setIsAvailable] = useState(true);
@@ -54,53 +59,6 @@ export default function Hero() {
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
-
-  // Trage profilul/rolul imediat când există userId (și forțează refresh în provider)
-  useEffect(() => {
-    if (!userId) {
-      setRoleDb(null);
-      return;
-    }
-    refreshProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
-
-  // Citește rolul DIRECT din profiles (fix pentru Vercel / timing)
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadRole() {
-      if (!userId) return;
-
-      setRoleLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", userId)
-          .maybeSingle();
-
-        if (error) throw error;
-
-        const r = (data?.role || null) as Role;
-        if (!cancelled) setRoleDb(r);
-      } catch {
-        // dacă pică query-ul, nu blocăm aplicația — tratăm ca “client”
-        if (!cancelled) setRoleDb("client");
-      } finally {
-        if (!cancelled) setRoleLoading(false);
-      }
-    }
-
-    if (userId) void loadRole();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
-
-  const roleReady = !authLoading && (!isLoggedIn || (!roleLoading && roleDb !== null));
-  const isCourier = roleReady && isLoggedIn && roleDb === "courier";
 
   return (
     <section className="relative min-h-screen flex items-center justify-center px-6 overflow-hidden">
@@ -212,14 +170,18 @@ export default function Hero() {
 
       {/* CONTENT */}
       <div className="w-full max-w-2xl text-center">
-        {/* amvenit.ro SUS */}
-        <div className="pt-4 md:pt-3" />
-        <h1 className="text-5xl md:text-6xl font-extrabold text-white">
-          amvenit.ro
-        </h1>
+        {/* 🔥 PASUL 3: titlul amvenit.ro apare DOAR la livrator */}
+        {isCourier && (
+          <>
+            <div className="pt-4 md:pt-3" />
+            <h1 className="text-5xl md:text-6xl font-extrabold text-white">
+              amvenit.ro
+            </h1>
+          </>
+        )}
 
-        {/* blocăm UI-ul până știm sigur rolul (doar dacă e logat) */}
-        {isLoggedIn && !roleReady ? (
+        {/* Dacă e logat dar încă nu știm rolul */}
+        {!roleReady && isLoggedIn ? (
           <div className="mt-6 text-white/80 font-semibold">Se încarcă…</div>
         ) : isCourier ? (
           <>
