@@ -1,132 +1,148 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/AuthProvider";
 
 type OrderRow = {
   id: string;
-  created_at: string;
+  what: string;
+  who_where: string;
+  phone: string;
+  urgent: boolean;
   status: string;
-  what: string | null;
-  who_where: string | null;
-  urgent: boolean | null;
-  client_id: string | null;
-  courier_id: string | null;
+  created_at: string;
 };
 
 export default function ComenzileMelePage() {
   const router = useRouter();
-  const { loading, userId, role } = useAuth();
+  const { authLoading, userId } = useAuth();
 
   const [rows, setRows] = useState<OrderRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(true);
 
-  const title = useMemo(() => {
-    if (role === "courier") return "Comenzile mele (livrator)";
-    return "Comenzile mele (client)";
-  }, [role]);
-
+  // dacă nu e logat → redirect la conectare
   useEffect(() => {
-    if (!loading && !userId) router.replace("/conectare?next=/comenzile-mele");
-  }, [loading, userId, router]);
+    if (!authLoading && !userId) {
+      router.replace("/conectare?next=/comenzile-mele");
+    }
+  }, [authLoading, userId, router]);
 
+  // încarcă comenzile
   useEffect(() => {
-    if (!userId || loading) return;
+    if (!userId) return;
 
-    (async () => {
-      setBusy(true);
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
       setErr(null);
 
-      try {
-        let q = supabase
-          .from("orders")
-          .select("id, created_at, status, what, who_where, urgent, client_id, courier_id")
-          .order("created_at", { ascending: false })
-          .limit(50);
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("client_id", userId)
+        .order("created_at", { ascending: false });
 
-        if (role === "courier") {
-          q = q.eq("courier_id", userId);
-        } else {
-          q = q.eq("client_id", userId);
-        }
+      if (cancelled) return;
 
-        const { data, error } = await q;
-        if (error) throw new Error(error.message);
-
-        setRows((data ?? []) as OrderRow[]);
-      } catch (e: any) {
-        setErr(e?.message ?? "Eroare necunoscută");
-      } finally {
-        setBusy(false);
+      if (error) {
+        setErr(error.message);
+      } else {
+        setRows((data as OrderRow[]) || []);
       }
-    })();
-  }, [userId, loading, role]);
 
-  if (loading) {
+      setLoading(false);
+    }
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  // loading auth
+  if (authLoading) {
     return (
       <main className="min-h-screen flex items-center justify-center px-6">
-        <div className="text-slate-700 font-semibold">Se încarcă...</div>
+        <div className="text-slate-700 font-semibold">Se verifică sesiunea…</div>
       </main>
     );
   }
-  if (!userId) return null;
+
+  // încărcare comenzi
+  if (loading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center px-6">
+        <div className="text-slate-700 font-semibold">
+          Se încarcă comenzile…
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <main className="min-h-screen px-6 py-10">
+    <main className="min-h-screen px-6 py-10 bg-slate-50">
       <div className="max-w-3xl mx-auto">
-        <div className="flex items-center justify-between gap-3">
-          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900">{title}</h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-extrabold text-slate-900">
+            Comenzile mele
+          </h1>
+
           <Link
             href="/cont"
-            className="rounded-full border border-slate-300 bg-white px-5 py-2 font-extrabold text-slate-800 hover:bg-slate-50"
+            className="rounded-full bg-orange-600 px-5 py-2 text-white font-bold hover:bg-orange-700"
           >
-            Înapoi la cont
+            Contul meu
           </Link>
         </div>
 
         {err && (
-          <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-800 font-semibold">
+          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-800 font-semibold">
             {err}
           </div>
         )}
 
-        {busy ? (
-          <div className="mt-6 text-slate-700 font-semibold">Se încarcă comenzile...</div>
-        ) : rows.length === 0 ? (
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 text-slate-700">
-            N-ai comenzi încă.
+        {rows.length === 0 ? (
+          <div className="rounded-3xl bg-white shadow p-8 text-center text-slate-600">
+            Nu ai încă nicio comandă.
           </div>
         ) : (
-          <div className="mt-6 space-y-4">
-            {rows.map((o) => (
+          <div className="space-y-4">
+            {rows.map((r) => (
               <div
-                key={o.id}
-                className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
+                key={r.id}
+                className="rounded-3xl bg-white shadow border border-black/5 p-6"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="font-extrabold text-slate-900">
-                    {o.what || "Comandă"}
-                    {o.urgent ? (
-                      <span className="ml-2 inline-flex items-center rounded-full bg-red-600 px-3 py-1 text-xs font-extrabold text-white">
-                        URGENT
-                      </span>
-                    ) : null}
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-xl font-extrabold text-slate-900">
+                      {r.what}
+                    </div>
+                    <div className="mt-1 text-slate-700">
+                      {r.who_where}
+                    </div>
+                    <div className="mt-1 text-sm text-slate-500">
+                      {new Date(r.created_at).toLocaleString("ro-RO")}
+                    </div>
                   </div>
-                  <div className="text-xs font-semibold text-slate-500">
-                    {new Date(o.created_at).toLocaleString("ro-RO")}
-                  </div>
+
+                  {r.urgent && (
+                    <div className="shrink-0 rounded-full bg-orange-100 px-4 py-1 text-orange-700 font-extrabold">
+                      Urgent
+                    </div>
+                  )}
                 </div>
 
-                <div className="mt-2 text-slate-700">
-                  <span className="font-bold">Detalii:</span> {o.who_where || "-"}
-                </div>
-
-                <div className="mt-2 text-slate-700">
-                  <span className="font-bold">Status:</span> {o.status}
+                <div className="mt-4 flex items-center justify-between">
+                  <div className="text-sm font-semibold text-slate-700">
+                    Status:{" "}
+                    <span className="font-extrabold">{r.status}</span>
+                  </div>
                 </div>
               </div>
             ))}

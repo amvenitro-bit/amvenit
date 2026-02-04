@@ -21,7 +21,7 @@ function normalizePhone(raw: string) {
 
 export default function CererePage() {
   const router = useRouter();
-  const { userId, loading: authLoading, profile, refreshProfile } = useAuth();
+  const { userId, authLoading, profile, refreshProfile } = useAuth();
 
   const [what, setWhat] = useState("");
   const [name, setName] = useState("");

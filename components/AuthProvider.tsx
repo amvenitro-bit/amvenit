@@ -1,131 +1,160 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-type Role = "client" | "courier" | "admin" | null;
+type UserRole = "client" | "courier" | null;
 
-type Profile = {
+type ProfileRow = {
   id: string;
-  role: Role;
+  role: "client" | "courier";
   full_name: string | null;
   phone: string | null;
+  created_at?: string;
 };
 
-type AuthState = {
-  loading: boolean;
+type Profile = ProfileRow | null;
+
+type AuthCtx = {
+  authLoading: boolean;     // doar sesiunea
+  profileLoading: boolean;  // doar profilul
   userId: string | null;
   email: string | null;
-  profile: Profile | null;
-  role: Role;
+  role: UserRole;
+  profile: Profile;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 };
 
-const AuthCtx = createContext<AuthState | null>(null);
+const Ctx = createContext<AuthCtx | null>(null);
 
-export function useAuth() {
-  const v = useContext(AuthCtx);
-  if (!v) throw new Error("useAuth must be used within <AuthProvider />");
-  return v;
-}
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [authLoading, setAuthLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
 
-export default function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<Profile>(null);
 
-  async function loadProfile(uid: string) {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, role, full_name, phone")
-      .eq("id", uid)
-      .single();
+  const inflightProfile = useRef<Promise<void> | null>(null);
+  const profileTimeoutMs = 12000;
 
-    if (error) {
-      // dacă nu există profil (rar), nu blocăm UX-ul
+  async function refreshProfile(): Promise<void> {
+    if (!userId) {
       setProfile(null);
       return;
     }
-    setProfile(data as Profile);
+
+    // dacă deja rulează, nu mai porni încă unul
+    if (inflightProfile.current) return inflightProfile.current;
+
+    const task = (async () => {
+      setProfileLoading(true);
+
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("profile timeout")), profileTimeoutMs)
+      );
+
+      try {
+        const fetcher = supabase
+          .from("profiles")
+          .select("id, role, full_name, phone, created_at")
+          .eq("id", userId)
+          .maybeSingle()
+          .then(({ data, error }) => {
+            if (error) throw error;
+            setProfile((data as ProfileRow) ?? null);
+          });
+
+        await Promise.race([fetcher, timeout]);
+      } catch {
+        // dacă e lent/eroare, nu blocăm UI-ul
+      } finally {
+        setProfileLoading(false);
+        inflightProfile.current = null;
+      }
+    })();
+
+    inflightProfile.current = task;
+    return task;
   }
 
-  async function refreshProfile() {
-    const { data } = await supabase.auth.getUser();
-    const uid = data.user?.id ?? null;
-    if (!uid) {
-      setProfile(null);
-      return;
+  async function bootstrap() {
+    setAuthLoading(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const session = data.session;
+
+      if (!session?.user) {
+        setUserId(null);
+        setEmail(null);
+        setProfile(null);
+        return;
+      }
+
+      setUserId(session.user.id);
+      setEmail(session.user.email ?? null);
+
+      // pornește profilul async (fără să blocheze auth)
+      void refreshProfile();
+    } finally {
+      setAuthLoading(false);
     }
-    await loadProfile(uid);
-  }
-
-  async function signOut() {
-    await supabase.auth.signOut();
-    setUserId(null);
-    setEmail(null);
-    setProfile(null);
   }
 
   useEffect(() => {
-    let alive = true;
+    void bootstrap();
 
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      const sess = data.session;
-
-      if (!alive) return;
-
-      if (!sess?.user) {
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user) {
         setUserId(null);
         setEmail(null);
         setProfile(null);
-        setLoading(false);
+        setAuthLoading(false);
         return;
       }
 
-      setUserId(sess.user.id);
-      setEmail(sess.user.email ?? null);
-      await loadProfile(sess.user.id);
-      setLoading(false);
-    })();
+      setUserId(session.user.id);
+      setEmail(session.user.email ?? null);
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const u = session?.user ?? null;
-
-      if (!u) {
-        setUserId(null);
-        setEmail(null);
-        setProfile(null);
-        setLoading(false);
-        return;
-      }
-
-      setUserId(u.id);
-      setEmail(u.email ?? null);
-      await loadProfile(u.id);
-      setLoading(false);
+      // profil async
+      void refreshProfile();
     });
 
     return () => {
-      alive = false;
-      sub.subscription.unsubscribe();
+      data.subscription.unsubscribe();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const value = useMemo<AuthState>(
-    () => ({
-      loading,
-      userId,
-      email,
-      profile,
-      role: profile?.role ?? null,
-      refreshProfile,
-      signOut,
-    }),
-    [loading, userId, email, profile]
-  );
+  const role: UserRole = useMemo(() => (profile?.role ?? null), [profile]);
 
-  return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
+  async function signOut() {
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      setUserId(null);
+      setEmail(null);
+      setProfile(null);
+    }
+  }
+
+  const value: AuthCtx = {
+    authLoading,
+    profileLoading,
+    userId,
+    email,
+    role,
+    profile,
+    refreshProfile,
+    signOut,
+  };
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+export function useAuth() {
+  const v = useContext(Ctx);
+  if (!v) throw new Error("useAuth must be used inside <AuthProvider />");
+  return v;
 }
