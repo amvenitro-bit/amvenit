@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -10,9 +10,13 @@ export default function ContPage() {
   const { authLoading, userId, email, profile, role, signOut, refreshProfile } =
     useAuth();
 
+  const [loggingOut, setLoggingOut] = useState(false);
+
   useEffect(() => {
+    // IMPORTANT: când delogăm, nu mai lăsăm pagina să ne trimită în /conectare
+    if (loggingOut) return;
     if (!authLoading && !userId) router.replace("/conectare?next=/cont");
-  }, [authLoading, userId, router]);
+  }, [authLoading, userId, router, loggingOut]);
 
   useEffect(() => {
     if (userId) refreshProfile();
@@ -75,8 +79,15 @@ export default function ContPage() {
 
           <button
             onClick={async () => {
-              await signOut();
-              router.replace("/");
+              setLoggingOut(true);
+
+              // 1) curățăm sesiunea
+              try {
+                await signOut();
+              } finally {
+                // 2) hard redirect -> nu mai apucă să ne trimită /cont în /conectare
+                window.location.href = "/";
+              }
             }}
             className="flex-1 rounded-full border border-orange-600 bg-white px-6 py-3 font-extrabold text-orange-600 hover:bg-orange-50"
           >
