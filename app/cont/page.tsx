@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -22,6 +22,12 @@ export default function ContPage() {
     if (userId) refreshProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
+
+  const title = useMemo(() => {
+    if (role === "courier") return "Contul meu de livrator";
+    if (role === "client") return "Contul meu de client";
+    return "Contul meu";
+  }, [role]);
 
   if (authLoading) {
     return (
@@ -52,9 +58,12 @@ export default function ContPage() {
       </div>
 
       <div className="w-full max-w-2xl bg-white/85 backdrop-blur rounded-3xl shadow-xl border border-white/10 p-6 md:p-8">
-        <h1 className="text-3xl font-extrabold text-slate-900">Contul meu</h1>
+        {/* TITLU CENTRAT */}
+        <h1 className="text-center text-3xl font-extrabold text-slate-900">
+          {title}
+        </h1>
 
-        <div className="mt-6 space-y-3 text-slate-800">
+        <div className="mt-8 space-y-3 text-slate-800">
           <div>
             <span className="font-bold">Email:</span> {email ?? "-"}
           </div>
@@ -64,9 +73,14 @@ export default function ContPage() {
           <div>
             <span className="font-bold">Telefon:</span> {profile?.phone ?? "-"}
           </div>
-          <div>
-            <span className="font-bold">Rol:</span> {role ?? "-"}
-          </div>
+          {role === "courier" && (
+  <div>
+    <span className="font-bold">Nr. înmatriculare:</span>{" "}
+    {profile?.vehicle_plate ?? "-"}
+  </div>
+)}
+
+          {/* ROLUL DISPARA COMPLET */}
         </div>
 
         <div className="mt-8 flex flex-col sm:flex-row gap-3">

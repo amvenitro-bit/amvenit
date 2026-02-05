@@ -26,8 +26,10 @@ export default function Hero() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
+  // roleReady ca să nu “clipim” UI greșit imediat după login
   const roleReady = !authLoading && (!userId || !!role);
   const isCourier = roleReady && isLoggedIn && role === "courier";
+  const isClient = roleReady && isLoggedIn && role === "client";
 
   // Toggle Disponibil/Indisponibil (UI only) – persistă în localStorage
   const [isAvailable, setIsAvailable] = useState(true);
@@ -151,7 +153,7 @@ export default function Hero() {
         </div>
       </div>
 
-      {/* ================== HEADER DESKTOP (full-width, pixel perfect) ================== */}
+      {/* ================== HEADER DESKTOP ================== */}
       <div className="absolute top-6 left-0 right-0 z-40 hidden md:block">
         {/* Brand absolut centrat */}
         <div className="absolute left-1/2 -translate-x-1/2 top-0">
@@ -160,7 +162,7 @@ export default function Hero() {
           </div>
         </div>
 
-        {/* Butoane LIPITE sus-dreapta */}
+        {/* Butoane sus-dreapta */}
         <div className="absolute right-6 top-0 flex gap-3">
           {authLoading ? null : isLoggedIn ? (
             <Link
@@ -200,7 +202,7 @@ export default function Hero() {
         />
       </div>
 
-      {/* CONTENT (autofit: pe mobil lăsăm loc de header) */}
+      {/* CONTENT */}
       <div className="w-full max-w-2xl text-center pt-28 md:pt-28">
         {!roleReady && isLoggedIn ? (
           <div className="mt-10 text-white/80 font-semibold">Se încarcă…</div>
@@ -259,6 +261,7 @@ export default function Hero() {
           </>
         ) : (
           <>
+            {/* Client/anon */}
             <div className="mt-10" />
 
             <h2 className="text-4xl md:text-6xl font-extrabold text-white mb-6">
@@ -281,12 +284,22 @@ export default function Hero() {
                 Plasează o comandă
               </Link>
 
-              <Link
-                href="/comenzi"
-                className="w-full sm:w-[320px] rounded-full bg-slate-700 hover:bg-slate-800 text-white shadow-xl flex items-center justify-center py-5 text-lg font-extrabold"
-              >
-                Comenzi active
-              </Link>
+              {/* AICI E SCHIMBAREA: client logat -> Comenzile mele; nelogat -> Comenzi active */}
+              {isClient ? (
+                <Link
+                  href="/comenzile-mele"
+                  className="w-full sm:w-[320px] rounded-full bg-slate-700 hover:bg-slate-800 text-white shadow-xl flex items-center justify-center py-5 text-lg font-extrabold"
+                >
+                  Comenzile mele
+                </Link>
+              ) : (
+                <Link
+                  href="/comenzi"
+                  className="w-full sm:w-[320px] rounded-full bg-slate-700 hover:bg-slate-800 text-white shadow-xl flex items-center justify-center py-5 text-lg font-extrabold"
+                >
+                  Comenzi active
+                </Link>
+              )}
             </div>
           </>
         )}

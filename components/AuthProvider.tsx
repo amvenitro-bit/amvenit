@@ -17,6 +17,7 @@ type ProfileRow = {
   role: "client" | "courier";
   full_name: string | null;
   phone: string | null;
+  vehicle_plate: string | null;
   created_at?: string;
 };
 
@@ -80,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const fetcher = supabase
           .from("profiles")
-          .select("id, role, full_name, phone, created_at")
+          .select("id, role, full_name, phone, vehicle_plate, created_at")
           .eq("id", uid)
           .maybeSingle()
           .then(({ data, error }) => {
