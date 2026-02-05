@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { ctaDetails } from "@/data/cta";
 
-const PlayStoreButton = ({ dark }: { dark?: boolean }) => {
+const PlayStoreButton = ({ dark = true }: { dark?: boolean }) => {
   return (
     <a
       href={ctaDetails.googlePlayUrl}

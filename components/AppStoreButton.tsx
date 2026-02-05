@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { ctaDetails } from "@/data/cta";
 
-const AppStoreButton = ({ dark }: { dark?: boolean }) => {
+const AppStoreButton = ({ dark = true }: { dark?: boolean }) => {
   return (
     <a
       href={ctaDetails.appStoreUrl}
